@@ -85,15 +85,31 @@ func readMessages() {
 
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
-		messages = append(messages, scanner.Text())
+		row := scanner.Text()
+		if row == "" {
+			continue
+		}
+		messages = append(messages, row)
 	}
 	if err := scanner.Err(); err != nil {
 		log.Fatal(err)
 	}
 }
 
-func main() {
+func writeNewMessage(msg string) {
+	f, err := os.OpenFile("data.txt", os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer f.Close()
 
+	if _, err := f.WriteString("\n" + msg + "\n"); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func main() {
+	readMessages()
 	stefko := NewStefko()
 	stefkoMuza := NewMuza([]Prophet{stefko})
 
@@ -107,7 +123,12 @@ func main() {
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		data := r.URL.Path[1:]
+		if data == "" || data == "favicon.ico" {
+			return
+		}
 		messages = append(messages, data)
+		writeNewMessage(data)
+		readMessages()
 	})
 	http.ListenAndServe(":8080", nil)
 }
